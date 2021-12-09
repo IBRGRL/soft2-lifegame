@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>  // sleep()関数を使う
 
-#include "gol.h"
-
 #define MAX_LEN 100
 
 void my_init_cells(const int height, const int width, int cell[height][width], FILE* fp)
@@ -13,13 +11,14 @@ void my_init_cells(const int height, const int width, int cell[height][width], F
     int n = 0;  // 初期値の個数
     if (fp != NULL) {
         // read the data.
-        char buffer[15];
-        fgets(buffer, 15, fp);  // 最初の1行はコメントなので捨てる
-        while (fgets(buffer, 15, fp) != NULL) {
-            char *end1, *end2;
-            init_x[n] = strtol(buffer, &end1, 10);
-            init_y[n] = strtol(end1, &end2, 10);
-            ++n;
+        char buffer[20];
+        while (fgets(buffer, 20, fp) != NULL) {
+            if (buffer[0] != '#') {
+                char *end1, *end2;
+                init_x[n] = strtol(buffer, &end1, 10);
+                init_y[n] = strtol(end1, &end2, 10);
+                ++n;
+            }
         }
     } else {
         init_x[0] = 30;
@@ -69,21 +68,63 @@ void my_print_cells(FILE* fp, int gen, const int height, const int width, int ce
     fprintf(fp, "+\n");
 }
 
-/*
- 着目するセルの周辺の生きたセルをカウントする関数
- */
 int my_count_adjacent_cells(int h, int w, const int height, const int width, int cell[height][width])
 {
-    //TODO
-    return 0;
+    int count = 0;
+    if (h > 0 && w > 0) {
+        count += cell[h - 1][w - 1];
+    }
+    if (h > 0) {
+        count += cell[h - 1][w];
+    }
+    if (h > 0 && w < width - 1) {
+        count += cell[h - 1][w + 1];
+    }
+    if (w > 0) {
+        count += cell[h][w - 1];
+    }
+    if (w < width - 1) {
+        count += cell[h][w + 1];
+    }
+    if (h < height - 1 && w > 0) {
+        count += cell[h + 1][w - 1];
+    }
+    if (h < height - 1) {
+        count += cell[h + 1][w];
+    }
+    if (h < height - 1 && w < width - 1) {
+        count += cell[h + 1][w + 1];
+    }
+    return count;
 }
 
-/*
- ライフゲームのルールに基づいて2次元配列の状態を更新する
- */
 void my_update_cells(const int height, const int width, int cell[height][width])
 {
-    //TODO
+    int next_cell[height][width];
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            int count = my_count_adjacent_cells(i, j, height, width, cell);
+            if (cell[i][j]) {
+                if (count == 2 || count == 3) {
+                    next_cell[i][j] = 1;
+                } else {
+                    next_cell[i][j] = 0;
+                }
+            } else {
+                if (count == 3) {
+                    next_cell[i][j] = 1;
+                } else {
+                    next_cell[i][j] = 0;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            cell[i][j] = next_cell[i][j];
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -121,7 +162,7 @@ int main(int argc, char** argv)
 
     /* 世代を進める*/
     for (int gen = 1;; gen++) {
-        update_cells(height, width, cell);             // セルを更新
+        my_update_cells(height, width, cell);          // セルを更新
         my_print_cells(fp, gen, height, width, cell);  // 表示する
         sleep(1);                                      //1秒休止する
         fprintf(fp, "\e[%dA", height + 3);             //height+3 の分、カーソルを上に戻す(壁2、表示部1)
